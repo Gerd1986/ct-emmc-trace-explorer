@@ -1,0 +1,33 @@
+name: Windows EXE Release
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller
+      - name: Build standalone EXE
+        run: pyinstaller --noconfirm --clean --onefile --windowed --name CT-eMMC-Trace-Explorer app.py
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: CT-eMMC-Trace-Explorer-Windows
+          path: dist/CT-eMMC-Trace-Explorer.exe
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: gh release create "${{ github.ref_name }}" "dist/CT-eMMC-Trace-Explorer.exe" --title "CT eMMC Trace Explorer ${{ github.ref_name }}" --notes "Windows standalone executable (PyInstaller)." --verify-tag
