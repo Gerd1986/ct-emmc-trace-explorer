@@ -26,14 +26,14 @@ jobs:
           name: CT-eMMC-Trace-Explorer-Windows
           path: dist/CT-eMMC-Trace-Explorer.exe
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"
+          $tag = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}" } else { "v1.0.0" }
           if (gh release view $tag 2>$null) {
             gh release upload $tag "dist/CT-eMMC-Trace-Explorer.exe" --clobber
           } else {
-            gh release create $tag "dist/CT-eMMC-Trace-Explorer.exe" --title "CT eMMC Trace Explorer $tag" --notes "Windows standalone executable (PyInstaller)." --verify-tag
+            gh release create $tag "dist/CT-eMMC-Trace-Explorer.exe" --title "CT eMMC Trace Explorer $tag" --notes "Windows standalone executable (PyInstaller)."
           }
