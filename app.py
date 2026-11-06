@@ -49,7 +49,8 @@ class Explorer(tk.Tk):
         for label, action in [("Slices laden", self.load), ("Projekt öffnen", self.open_project),
                               ("Projekt speichern", self.save_project), ("CSV exportieren", self.export_csv),
                               ("Zurück", lambda: self.step(-1)), ("Weiter", lambda: self.step(1)),
-                              ("Punkt löschen", self.undo)]:
+                              ("Punkt löschen", self.undo), ("Zoom +", lambda: self.zoom_at(1.25)),
+                              ("Zoom -", lambda: self.zoom_at(0.8)), ("Bild einpassen", self.fit_image)]:
             ttk.Button(bar, text=label, command=action).pack(side="left", padx=2)
         opts = ttk.Frame(self)
         opts.pack(fill="x", padx=6)
@@ -91,7 +92,7 @@ class Explorer(tk.Tk):
         self.zoom = 1.0
         self.origin = [0, 0]
         self.slider.configure(to=len(paths)-1)
-        self.draw()
+        self.after_idle(self.fit_image)
 
     def get_image(self, index):
         if index not in self.cache:
@@ -118,11 +119,33 @@ class Explorer(tk.Tk):
     def step(self, n):
         self.goto(self.index+n)
 
+    def zoom_at(self, factor, x=None, y=None):
+        if not self.files:
+            return
+        if x is None:
+            x = self.canvas.winfo_width() / 2
+        if y is None:
+            y = self.canvas.winfo_height() / 2
+        previous = self.zoom
+        self.zoom = max(0.05, min(20.0, previous * factor))
+        scale = self.zoom / previous
+        self.origin[0] = x - (x - self.origin[0]) * scale
+        self.origin[1] = y - (y - self.origin[1]) * scale
+        self.draw()
+
+    def fit_image(self):
+        if not self.files:
+            return
+        w, h = self.get_image(self.index).size
+        cw = max(1, self.canvas.winfo_width())
+        ch = max(1, self.canvas.winfo_height())
+        self.zoom = min(cw / w, ch / h)
+        self.origin = [(cw - w*self.zoom)/2, (ch - h*self.zoom)/2]
+        self.draw()
+
     def wheel(self, event):
         if event.state & 0x0004:
-            factor = 1.2 if event.delta > 0 else 1/1.2
-            self.zoom = max(0.1, min(12, self.zoom*factor))
-            self.draw()
+            self.zoom_at(1.2 if event.delta > 0 else 1/1.2, event.x, event.y)
         else:
             self.step(-1 if event.delta > 0 else 1)
 
